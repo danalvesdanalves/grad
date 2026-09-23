@@ -71,21 +71,16 @@
     overflow-y: auto;
     overscroll-behavior-y: contain;
     -webkit-overflow-scrolling: touch;
-    /* Taller-than-viewport squares (any landscape window) need to be
-       scrollable past, so mandatory snapping is portrait-only. */
-    scroll-snap-type: y proximity;
+    scroll-snap-type: y mandatory;
     scrollbar-width: none;
   }
   .feed::-webkit-scrollbar { display: none; }
   .feed:focus-visible { outline: none; }
 
-  @media (max-aspect-ratio: 1 / 1) {
-    .feed { scroll-snap-type: y mandatory; }
-  }
-
+  /* Exactly one viewport per slide, so every swipe lands cleanly. */
   .slide {
-    min-height: 100vh;
-    min-height: 100dvh;
+    height: 100vh;
+    height: 100dvh;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -93,11 +88,14 @@
     scroll-snap-stop: always;
   }
 
-  /* Edge to edge, always square. Height follows the width and is never
-     capped to the viewport. */
+  /* The square runs edge to edge on whichever axis is shorter and centers on
+     the other: full width on a portrait screen, full height on a landscape
+     one. Either way it never exceeds the viewport, which is what keeps the
+     scroll one-slide-per-swipe. */
   .square {
     position: relative;
-    width: 100%;
+    width: min(100%, 100vh);
+    width: min(100%, 100dvh);
     aspect-ratio: 1 / 1;
   }
 
