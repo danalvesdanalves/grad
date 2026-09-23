@@ -2,9 +2,10 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Dan Alves Graduation</title>
 <link rel="preload" href="/fonts/SharpEarthMono-Bold.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/projects/01.png" as="image">
 <style>
   /* Sharp Earth Mono Bold is the only font on this site.
      The 100-900 range makes this one file answer every weight request,
@@ -41,10 +42,22 @@
   }
 
   body {
-    padding: 36px;
-    min-height: 100vh;
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* The name floats above the feed; the 36px belongs to it now, since the
+     squares themselves have to run full-bleed. */
+  header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    padding: 36px;
+    z-index: 2;
+    pointer-events: none;
   }
 
   h1 {
@@ -52,9 +65,167 @@
     font-size: 12px;
     font-weight: 400;
   }
+
+  .feed {
+    height: 100%;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
+    /* Taller-than-viewport squares (any landscape window) need to be
+       scrollable past, so mandatory snapping is portrait-only. */
+    scroll-snap-type: y proximity;
+    scrollbar-width: none;
+  }
+  .feed::-webkit-scrollbar { display: none; }
+  .feed:focus-visible { outline: none; }
+
+  @media (max-aspect-ratio: 1 / 1) {
+    .feed { scroll-snap-type: y mandatory; }
+  }
+
+  .slide {
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+  }
+
+  /* Edge to edge, always square. Height follows the width and is never
+     capped to the viewport. */
+  .square {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+  }
+
+  .square img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    user-select: none;
+    -webkit-user-drag: none;
+  }
 </style>
 </head>
 <body>
-  <h1>Dan Alves graduation</h1>
+  <header><h1>Dan Alves graduation</h1></header>
+
+  <main class="feed" id="feed" tabindex="0" aria-label="Projects">
+    <noscript>
+      <div class="slide"><div class="square"><img src="/projects/01.png" alt="Olive — mobile app scanning a product barcode"></div></div>
+      <div class="slide"><div class="square"><img src="/projects/02.png" alt="E-commerce storefront on a desktop display"></div></div>
+      <div class="slide"><div class="square"><img src="/projects/03.png" alt="Comunal — mobile app landing screen"></div></div>
+    </noscript>
+  </main>
+
+<script>
+(function () {
+  var PROJECTS = [
+    { src: "/projects/01.png", alt: "Olive — mobile app scanning a product barcode" },
+    { src: "/projects/02.png", alt: "E-commerce storefront on a desktop display" },
+    { src: "/projects/03.png", alt: "Comunal — mobile app landing screen" }
+  ];
+
+  var feed = document.getElementById("feed");
+  var N = PROJECTS.length;
+  if (!N) return;
+
+  /* Three copies of the set, parked in the middle one. Scrolling off either
+     end lands on identical content, so snapping the scroll position back by a
+     whole cycle afterwards is invisible — that's the loop. Three copies (not
+     one clone per side) leaves room for a hard fling to overshoot. */
+  var COPIES = 3;
+  feed.innerHTML = "";
+  for (var c = 0; c < COPIES; c++) {
+    for (var i = 0; i < N; i++) {
+      var slide = document.createElement("div");
+      slide.className = "slide";
+      var square = document.createElement("div");
+      square.className = "square";
+      var img = document.createElement("img");
+      img.src = PROJECTS[i].src;
+      img.alt = c === 1 ? PROJECTS[i].alt : "";
+      if (c !== 1) square.setAttribute("aria-hidden", "true");
+      img.decoding = "async";
+      img.draggable = false;
+      if (c === 1 && i === 0) img.fetchPriority = "high";
+      square.appendChild(img);
+      slide.appendChild(square);
+      feed.appendChild(slide);
+    }
+  }
+
+  var slides = feed.children;
+
+  function slideHeight() {
+    return slides[0] ? slides[0].getBoundingClientRect().height : 0;
+  }
+
+  function cycle() {
+    return slideHeight() * N;
+  }
+
+  /* Pull the scroll position back into the middle copy. Content repeats every
+     cycle, so the jump never shows. */
+  function normalize() {
+    var C = cycle();
+    if (!C) return;
+    var p = feed.scrollTop;
+    var rel = ((p - C) % C + C) % C;
+    var target = C + rel;
+    if (Math.abs(target - p) > 0.5) feed.scrollTop = target;
+  }
+
+  function currentIndex() {
+    var h = slideHeight();
+    if (!h) return 0;
+    return ((Math.round(feed.scrollTop / h) % N) + N) % N;
+  }
+
+  function goTo(delta) {
+    var h = slideHeight();
+    if (!h) return;
+    feed.scrollTo({ top: Math.round(feed.scrollTop / h) * h + delta * h, behavior: "smooth" });
+  }
+
+  // Start on the first project, in the middle copy.
+  feed.scrollTop = cycle();
+
+  /* Normalize only once the scroll has settled — repositioning mid-gesture
+     would kill iOS momentum. */
+  if ("onscrollend" in window) {
+    feed.addEventListener("scrollend", normalize);
+  } else {
+    var t;
+    feed.addEventListener("scroll", function () {
+      clearTimeout(t);
+      t = setTimeout(normalize, 140);
+    }, { passive: true });
+  }
+
+  feed.addEventListener("keydown", function (e) {
+    if (e.key === "ArrowDown" || e.key === "PageDown" || e.key === " ") {
+      e.preventDefault(); goTo(1);
+    } else if (e.key === "ArrowUp" || e.key === "PageUp") {
+      e.preventDefault(); goTo(-1);
+    }
+  });
+
+  // Keep the same project in view when the square resizes with the window.
+  var raf;
+  window.addEventListener("resize", function () {
+    var idx = currentIndex();
+    cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(function () {
+      var h = slideHeight();
+      if (h) feed.scrollTop = cycle() + idx * h;
+    });
+  });
+})();
+</script>
 </body>
 </html>
