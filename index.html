@@ -134,11 +134,14 @@
   var N = PROJECTS.length;
   if (!N) return;
 
-  /* Three copies of the set, parked in the middle one. Scrolling off either
-     end lands on identical content, so snapping the scroll position back by a
-     whole cycle afterwards is invisible — that's the loop. Three copies (not
-     one clone per side) leaves room for a hard fling to overshoot. */
-  var COPIES = 3;
+  /* The set is rendered several times over and the scroll position is parked
+     in the middle copy. Scrolling off either end lands on identical content,
+     so shifting the position back by a whole cycle afterwards is invisible —
+     that's the loop. The spare copies are runway: a fling has to outrun two
+     full cycles before it can reach a real edge. */
+  var COPIES = 5;
+  var HOME = Math.floor(COPIES / 2);
+
   feed.innerHTML = "";
   for (var c = 0; c < COPIES; c++) {
     for (var i = 0; i < N; i++) {
@@ -148,35 +151,35 @@
       square.className = "square";
       var img = document.createElement("img");
       img.src = PROJECTS[i].src;
-      img.alt = c === 1 ? PROJECTS[i].alt : "";
-      if (c !== 1) square.setAttribute("aria-hidden", "true");
+      // Only the home copy is exposed to assistive tech; the rest are dupes.
+      img.alt = c === HOME ? PROJECTS[i].alt : "";
+      if (c !== HOME) square.setAttribute("aria-hidden", "true");
       img.decoding = "async";
       img.draggable = false;
-      if (c === 1 && i === 0) img.fetchPriority = "high";
+      if (c === HOME && i === 0) img.fetchPriority = "high";
       square.appendChild(img);
       slide.appendChild(square);
       feed.appendChild(slide);
     }
   }
 
-  var slides = feed.children;
-
   function slideHeight() {
-    return slides[0] ? slides[0].getBoundingClientRect().height : 0;
+    return feed.firstElementChild ? feed.firstElementChild.getBoundingClientRect().height : 0;
   }
 
   function cycle() {
     return slideHeight() * N;
   }
 
-  /* Pull the scroll position back into the middle copy. Content repeats every
-     cycle, so the jump never shows. */
+  /* Pull the scroll position back into the home copy. Content repeats every
+     cycle, so the shift never shows. */
   function normalize() {
     var C = cycle();
     if (!C) return;
+    var base = HOME * C;
     var p = feed.scrollTop;
-    var rel = ((p - C) % C + C) % C;
-    var target = C + rel;
+    var rel = ((p - base) % C + C) % C;
+    var target = base + rel;
     if (Math.abs(target - p) > 0.5) feed.scrollTop = target;
   }
 
@@ -192,20 +195,30 @@
     feed.scrollTo({ top: Math.round(feed.scrollTop / h) * h + delta * h, behavior: "smooth" });
   }
 
-  // Start on the first project, in the middle copy.
-  feed.scrollTop = cycle();
+  // Start on the first project, in the home copy.
+  feed.scrollTop = HOME * cycle();
 
-  /* Normalize only once the scroll has settled — repositioning mid-gesture
-     would kill iOS momentum. */
-  if ("onscrollend" in window) {
-    feed.addEventListener("scrollend", normalize);
-  } else {
-    var t;
-    feed.addEventListener("scroll", function () {
-      clearTimeout(t);
-      t = setTimeout(normalize, 140);
-    }, { passive: true });
+  /* Normalizing mid-gesture cancels iOS momentum, so the reposition waits for
+     the scroll to settle. */
+  var settleTimer;
+  function onSettle() {
+    normalize();
   }
+  if ("onscrollend" in window) {
+    feed.addEventListener("scrollend", onSettle);
+  }
+  feed.addEventListener("scroll", function () {
+    /* Safety net: within half a cycle of a real edge, reposition right away
+       rather than risk the scroll dead-ending. Losing momentum beats hitting
+       a wall, and this only fires if a fling has outrun the settle handler. */
+    var C = cycle();
+    if (C) {
+      var p = feed.scrollTop;
+      if (p < C * 0.5 || p > (COPIES - 0.5) * C) normalize();
+    }
+    clearTimeout(settleTimer);
+    settleTimer = setTimeout(onSettle, 140);
+  }, { passive: true });
 
   feed.addEventListener("keydown", function (e) {
     if (e.key === "ArrowDown" || e.key === "PageDown" || e.key === " ") {
@@ -222,7 +235,7 @@
     cancelAnimationFrame(raf);
     raf = requestAnimationFrame(function () {
       var h = slideHeight();
-      if (h) feed.scrollTop = cycle() + idx * h;
+      if (h) feed.scrollTop = HOME * cycle() + idx * h;
     });
   });
 })();
