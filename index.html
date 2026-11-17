@@ -28,6 +28,7 @@
   :root {
     --ink: #A6A6A6;
     --pad: 36px;
+    --line: 18px;
     --serif: "Sharp Serif Text", Georgia, "Times New Roman", serif;
     --sans: "Alpes", system-ui, "Helvetica Neue", Arial, sans-serif;
   }
@@ -77,6 +78,14 @@
 
   p { margin: 0; }
 
+  /* Every line of text on the page shares one rhythm. The name is smaller
+     than the contact lines, so its line box is pinned to the same cadence
+     rather than left to its own font metrics — otherwise it steps out of
+     the block. */
+  .name, .contact, .caption {
+    line-height: var(--line);
+  }
+
   .name {
     font-family: var(--sans);
     font-weight: 700;
@@ -85,13 +94,8 @@
     text-transform: uppercase;
   }
 
-  .contact {
-    margin-top: 13px;
-  }
-
   /* The mockup sets every figure as an oldstyle/text figure. */
   .contact, .caption {
-    line-height: 1.3;
     font-variant-numeric: oldstyle-nums;
   }
 
