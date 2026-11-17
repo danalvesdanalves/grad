@@ -3,30 +3,43 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Dan Alves Graduation</title>
-<link rel="preload" href="/fonts/SharpEarthMono-Bold.woff2" as="font" type="font/woff2" crossorigin>
+<title>Dan Alves</title>
+<link rel="preload" href="/fonts/Alpes-Bold.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/SharpSerifText-Regular.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/projects/01.png" as="image">
 <style>
-  /* Sharp Earth Mono Bold is the only font on this site.
-     The 100-900 range makes this one file answer every weight request,
-     so nothing ever falls through to a second face. */
+  /* Two faces, both subset to Latin. Alpes Bold sets the name; Sharp Serif
+     Text sets everything else. */
   @font-face {
-    font-family: "Sharp Earth Mono";
-    src: url("/fonts/SharpEarthMono-Bold.woff2") format("woff2");
-    font-weight: 100 900;
+    font-family: "Alpes";
+    src: url("/fonts/Alpes-Bold.woff2") format("woff2");
+    font-weight: 700;
     font-style: normal;
     font-display: swap;
+  }
+  @font-face {
+    font-family: "Sharp Serif Text";
+    src: url("/fonts/SharpSerifText-Regular.woff2") format("woff2");
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+  }
+
+  :root {
+    --ink: #A6A6A6;
+    --pad: 36px;
+    --serif: "Sharp Serif Text", Georgia, "Times New Roman", serif;
+    --sans: "Alpes", system-ui, "Helvetica Neue", Arial, sans-serif;
   }
 
   * { box-sizing: border-box; }
 
   html {
-    font-family: "Sharp Earth Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
-    font-size: 12px;
+    font-family: var(--serif);
+    font-size: 14px;
     font-synthesis: none;
   }
 
-  /* Form controls and code elements don't inherit type by default. */
   button, input, select, textarea,
   code, pre, kbd, samp {
     font-family: inherit;
@@ -38,7 +51,7 @@
     margin: 0;
     padding: 0;
     background: #ffffff;
-    color: #000000;
+    color: var(--ink);
   }
 
   body {
@@ -49,21 +62,43 @@
     -moz-osx-font-smoothing: grayscale;
   }
 
-  /* The name floats above the feed; the 36px belongs to it now, since the
-     squares themselves have to run full-bleed. */
-  header {
+  /* Both text blocks float over the feed in opposite corners. They ignore
+     pointer events so they can never eat a swipe; only the contact links
+     take them back. */
+  header, footer {
     position: fixed;
-    top: 0;
     left: 0;
-    padding: 36px;
+    padding: var(--pad);
     z-index: 2;
     pointer-events: none;
   }
+  header { top: 0; }
+  footer { bottom: 0; }
 
-  h1 {
-    margin: 0;
+  p { margin: 0; }
+
+  .name {
+    font-family: var(--sans);
+    font-weight: 700;
     font-size: 12px;
-    font-weight: 400;
+    letter-spacing: 0.015em;
+    text-transform: uppercase;
+  }
+
+  .contact {
+    margin-top: 13px;
+  }
+
+  /* The mockup sets every figure as an oldstyle/text figure. */
+  .contact, .caption {
+    line-height: 1.3;
+    font-variant-numeric: oldstyle-nums;
+  }
+
+  .contact a {
+    color: inherit;
+    text-decoration: none;
+    pointer-events: auto;
   }
 
   .feed {
@@ -110,7 +145,13 @@
 </style>
 </head>
 <body>
-  <header><h1>Dan Alves graduation</h1></header>
+  <header>
+    <p class="name">Dan Alves</p>
+    <p class="contact">
+      <a href="tel:+19736186887">+1 973 618 6887</a><br>
+      <a href="mailto:mralvesoffice@gmail.com">mralvesoffice@gmail.com</a>
+    </p>
+  </header>
 
   <main class="feed" id="feed" tabindex="0" aria-label="Projects">
     <noscript>
@@ -120,15 +161,29 @@
     </noscript>
   </main>
 
+  <footer>
+    <p class="caption" aria-live="polite">
+      <span id="caption-title"></span><br>
+      <span id="caption-year"></span>
+    </p>
+  </footer>
+
 <script>
 (function () {
+  /* PLACEHOLDER COPY — the descriptions and years below are guesses read off
+     the images themselves. Replace `caption` and `year` with the real ones. */
   var PROJECTS = [
-    { src: "/projects/01.png", alt: "Olive — mobile app scanning a product barcode" },
-    { src: "/projects/02.png", alt: "E-commerce storefront on a desktop display" },
-    { src: "/projects/03.png", alt: "Comunal — mobile app landing screen" }
+    { src: "/projects/01.png", caption: "Mobile app for Olive", year: "2026",
+      alt: "Olive — mobile app scanning a product barcode" },
+    { src: "/projects/02.png", caption: "E-commerce website", year: "2026",
+      alt: "E-commerce storefront on a desktop display" },
+    { src: "/projects/03.png", caption: "Mobile app for Comunal", year: "2026",
+      alt: "Comunal — mobile app landing screen" }
   ];
 
   var feed = document.getElementById("feed");
+  var captionTitle = document.getElementById("caption-title");
+  var captionYear = document.getElementById("caption-year");
   var N = PROJECTS.length;
   if (!N) return;
 
@@ -187,6 +242,27 @@
     return ((Math.round(feed.scrollTop / h) % N) + N) % N;
   }
 
+  /* The caption tracks whichever square is closest to settled, so it flips
+     halfway through a swipe rather than waiting for the scroll to stop. */
+  var shown = -1;
+  function renderCaption() {
+    var i = currentIndex();
+    if (i === shown) return;
+    shown = i;
+    captionTitle.textContent = PROJECTS[i].caption;
+    captionYear.textContent = PROJECTS[i].year;
+  }
+
+  var captionQueued = false;
+  function queueCaption() {
+    if (captionQueued) return;
+    captionQueued = true;
+    requestAnimationFrame(function () {
+      captionQueued = false;
+      renderCaption();
+    });
+  }
+
   function goTo(delta) {
     var h = slideHeight();
     if (!h) return;
@@ -195,17 +271,16 @@
 
   // Start on the first project, in the home copy.
   feed.scrollTop = HOME * cycle();
+  renderCaption();
 
   /* Normalizing mid-gesture cancels iOS momentum, so the reposition waits for
      the scroll to settle. */
   var settleTimer;
-  function onSettle() {
-    normalize();
-  }
   if ("onscrollend" in window) {
-    feed.addEventListener("scrollend", onSettle);
+    feed.addEventListener("scrollend", normalize);
   }
   feed.addEventListener("scroll", function () {
+    queueCaption();
     /* Safety net: within half a cycle of a real edge, reposition right away
        rather than risk the scroll dead-ending. Losing momentum beats hitting
        a wall, and this only fires if a fling has outrun the settle handler. */
@@ -215,7 +290,7 @@
       if (p < C * 0.5 || p > (COPIES - 0.5) * C) normalize();
     }
     clearTimeout(settleTimer);
-    settleTimer = setTimeout(onSettle, 140);
+    settleTimer = setTimeout(normalize, 140);
   }, { passive: true });
 
   feed.addEventListener("keydown", function (e) {
